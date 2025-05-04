@@ -6,7 +6,6 @@ use std::fs;
 use std::io::Write;
 use std::path::PathBuf;
 use std::str::FromStr;
-
 use super::{prompt::Prompt, resolve_config_path};
 
 const API_KEYS_FILE: &str = ".api_configs.toml";
@@ -22,6 +21,7 @@ pub enum Api {
     Openai,
     AzureOpenai,
     Cerebras,
+    Google,
 }
 
 impl FromStr for Api {
@@ -36,6 +36,7 @@ impl FromStr for Api {
             "groq" => Ok(Api::Groq),
             "anthropic" => Ok(Api::Anthropic),
             "cerebras" => Ok(Api::Cerebras),
+            "google" => Ok(Api::Google),
             _ => Err(()),
         }
     }
@@ -51,6 +52,7 @@ impl ToString for Api {
             Api::Groq => "groq".to_string(),
             Api::Anthropic => "anthropic".to_string(),
             Api::Cerebras => "cerebras".to_string(),
+            Api::Google => "google".to_string(),
             v => panic!(
                 "{:?} is not implemented, use one among {:?}",
                 v,
@@ -192,6 +194,17 @@ impl ApiConfig {
             timeout_seconds: None,
         }
     }
+    
+    pub(super) fn google() -> Self {
+        ApiConfig {
+            api_key_command: None,
+            api_key: None,
+            url: String::from("https://generativelanguage.googleapis.com/v1beta/models/your_model:generateContent"),
+            default_model: Some(String::from("gemini-2.0-flash")),
+            version: None,
+            timeout_seconds: None,
+        }
+    }
 }
 
 pub(super) fn api_keys_path() -> PathBuf {
@@ -207,6 +220,7 @@ pub(super) fn generate_api_keys_file() -> std::io::Result<()> {
     api_config.insert(Api::Groq.to_string(), ApiConfig::groq());
     api_config.insert(Api::Anthropic.to_string(), ApiConfig::anthropic());
     api_config.insert(Api::Cerebras.to_string(), ApiConfig::cerebras());
+    api_config.insert(Api::Google.to_string(), ApiConfig::google());
 
     // Default, should override one of the above
     api_config.insert(Prompt::default().api.to_string(), ApiConfig::default());

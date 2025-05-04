@@ -49,3 +49,34 @@ impl From<OllamaResponse> for String {
         value.message.content
     }
 }
+
+// Google
+#[derive(Debug, Deserialize)]
+pub(super) struct GoogleContentParts {
+    pub text: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct GoogleResponseContent {
+    pub parts: Vec<GoogleContentParts>,
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct GoogleResponseCandidate {
+    pub content: GoogleResponseContent,
+}
+
+#[derive(Debug, Deserialize)]
+pub(super) struct GoogleResponse {
+    pub candidates: Vec<GoogleResponseCandidate>,
+}
+
+impl From<GoogleResponse> for String {
+    fn from(value: GoogleResponse) -> Self {
+        value.candidates.iter().fold(String::new(), |acc, c| {
+            acc + &c.content.parts.iter().fold(String::new(), |acc, c| {
+                acc + &c.text
+            })
+        })
+    }
+}

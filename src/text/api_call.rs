@@ -1,7 +1,7 @@
 use std::time::Duration;
 
-use super::request_schemas::{AnthropicPrompt, OpenAiPrompt};
-use super::response_schemas::{AnthropicResponse, OllamaResponse, OpenAiResponse};
+use super::request_schemas::{AnthropicPrompt, GooglePrompt, OpenAiPrompt};
+use super::response_schemas::{AnthropicResponse, GoogleResponse, OllamaResponse, OpenAiResponse};
 
 use crate::config::{
     api::{Api, ApiConfig},
@@ -18,6 +18,7 @@ use serde::{Deserialize, Serialize};
 enum PromptFormat {
     OpenAi(OpenAiPrompt),
     Anthropic(AnthropicPrompt),
+    Google(GooglePrompt),
 }
 
 pub fn post_prompt_and_get_answer(
@@ -53,11 +54,18 @@ pub fn post_prompt_and_get_answer(
             PromptFormat::OpenAi(OpenAiPrompt::from(prompt.clone()))
         }
         Api::Anthropic => PromptFormat::Anthropic(AnthropicPrompt::from(prompt.clone())),
+        Api::Google => PromptFormat::Google(GooglePrompt::from(prompt.clone())),
         Api::AnotherApiForTests => panic!("This api is not made for actual use."),
     };
 
-    let request = client
-        .post(&api_config.url)
+    let request = match prompt.api {
+        Api::Google => client
+            .post(&api_config.url.replace("your_model", prompt.model.as_ref().expect("model must be specified"),)),
+        _ => client
+            .post(&api_config.url)
+    };
+    
+    let request = request
         .header("Content-Type", "application/json")
         .json(&prompt_format);
 
@@ -82,6 +90,8 @@ pub fn post_prompt_and_get_answer(
                     "version required for Anthropic, please add version key to your api config",
                 ),
             ),
+        Api::Google => request
+            .query(&[("key", &api_config.get_api_key())]),
         _ => request,
     };
 
@@ -91,6 +101,7 @@ pub fn post_prompt_and_get_answer(
             handle_api_response::<OpenAiResponse>(request.send()?)
         }
         Api::Anthropic => handle_api_response::<AnthropicResponse>(request.send()?),
+        Api::Google => handle_api_response::<GoogleResponse>(request.send()?),
         Api::AnotherApiForTests => unreachable!(),
     };
     Ok(Message::assistant(&response_text))
